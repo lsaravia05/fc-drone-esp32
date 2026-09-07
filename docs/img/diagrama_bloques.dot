@@ -1,0 +1,82 @@
+digraph FCDrone {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=12, margin="0.15,0.1"];
+    edge [fontname="Helvetica", fontsize=10];
+    bgcolor="white";
+    ranksep=0.5;
+    nodesep=0.4;
+
+    labelloc="t";
+    label="Funcionamiento actual del sistema — FC Drone ESP32 (AEESS)\nSolo firmwares emisor_v1 y Drone_v0.1 (sin interfaces PC)";
+    fontsize=18;
+
+    subgraph cluster_emisor {
+        label="PLACA EMISOR — ESP32-S3  (emisor_v1 / main.c)";
+        style="rounded,filled";
+        fillcolor="#EAF2FB";
+        color="#2E5C8A";
+        fontsize=13;
+
+        uart_in [shape=box, style=filled, fillcolor="#FFFFFF",
+            label="Entrada UART0 (consola)\nLínea de texto, byte a byte\nhasta \\r o \\n"];
+        tarea_consola [shape=box, style=filled, fillcolor="#D6E6F7",
+            label="tarea_consola  (FreeRTOS)\nLee UART0 (bloqueante) y guarda\nel texto crudo en comando_actual\n(protegido por mutex, sin validar)"];
+        comando_actual [shape=ellipse, style=filled, fillcolor="#FFF3CD",
+            label="comando_actual\n(variable compartida, con mutex)"];
+        tarea_transmision [shape=box, style=filled, fillcolor="#D6E6F7",
+            label="tarea_transmision  (FreeRTOS)\nCada 200ms (sin parar), arma\n\"<contador>:<comando>\" y reenvía\nel último valor aunque no cambie"];
+        lora_driver_tx [shape=box, style=filled, fillcolor="#D6E6F7",
+            label="lora_sx1278.c/.h  (driver propio)\nlora_send_packet(buf,len) por SPI\nSCK12 MISO13 MOSI11 NSS10 RST9 DIO0-8"];
+        ra02 [shape=box, style=filled, fillcolor="#C7E3C0",
+            label="Módulo Ra-02 (SX1278)\nAntena IPEX/U.FL — PA_BOOST 17dBm"];
+
+        uart_in -> tarea_consola -> comando_actual;
+        comando_actual -> tarea_transmision [label="lee c/200ms"];
+        tarea_transmision -> lora_driver_tx -> ra02;
+    }
+
+    rf [shape=box, style="filled,dashed", fillcolor="#FDEBD0", color="#B9770E",
+        label="Enlace RF 433MHz (banda 410-525MHz)\nPayload de texto: \"<contador>:<comando>\"   ej. \"42:1500\" / \"42:on\" / \"42:off\""];
+
+    ra02 -> rf [label="TX"];
+
+    subgraph cluster_dron {
+        label="PLACA DRON — ESP32-S3  (Drone_v0.1 / main.c)";
+        style="rounded,filled";
+        fillcolor="#FBEAEA";
+        color="#8A2E2E";
+        fontsize=13;
+
+        ra01 [shape=box, style=filled, fillcolor="#C7E3C0",
+            label="Módulo Ra-01 (SX1278)\nAntena espiral soldada"];
+        lora_driver_rx [shape=box, style=filled, fillcolor="#F7D6D6",
+            label="lora_sx1278.c/.h (driver propio)\nlora_parse_packet(buf,max_len)\nlora_packet_rssi() / lora_packet_snr()\nIRQ vía DIO0"];
+        parse [shape=box, style=filled, fillcolor="#F7D6D6",
+            label="Parseo de paquete\nSepara <contador>:<comando> y compara\ncontador anterior → detecta pérdidas"];
+        metrics [shape=box, style=filled, fillcolor="#F7D6D6",
+            label="Cálculo de calidad de enlace\nRSSI, SNR, % perdidos,\nrating (EXCELENTE/BUENA/DÉBIL/MUY DÉBIL)"];
+        failsafe [shape=diamond, style=filled, fillcolor="#FFF3CD",
+            label="¿Llegó paquete\nen los últimos 1000ms?"];
+        esc_write [shape=box, style=filled, fillcolor="#F7D6D6",
+            label="esc_write_us() / us_to_duty()  sobre LEDC\n(50Hz, tipo servo) convierte comando\n(1000-2000µs) a duty cycle"];
+        motor1 [shape=box, style=filled, fillcolor="#C7E3C0",
+            label="M1 = GPIO4 → ESC + Motor 1\n(único motor probado hasta ahora)"];
+        motor_off [shape=box, style=filled, fillcolor="#F7D6D6", label="Apaga motor (failsafe)"];
+        reserved [shape=box, style="filled,dashed", fillcolor="#EEEEEE", color="#999999",
+            label="M2=GPIO5, M3=GPIO6, M4=GPIO7\nreservados y cableados, sin lógica de\ncontrol activa todavía (pendiente mixer)"];
+        console_out [shape=box, style=filled, fillcolor="#FFFFFF",
+            label="Salida consola serial (monitoreo)\ncontador, RSSI, SNR, %perdidos, rating, estado del motor"];
+
+        ra01 -> lora_driver_rx -> parse -> metrics;
+        parse -> failsafe;
+        failsafe -> esc_write [label="sí: aplica comando"];
+        failsafe -> motor_off [label="no"];
+        esc_write -> motor1;
+        esc_write -> reserved [style=dashed, color="#999999", label="mismo patrón (no implementado)"];
+        metrics -> console_out;
+        motor_off -> console_out;
+    }
+
+    rf -> ra01 [label="RX"];
+}

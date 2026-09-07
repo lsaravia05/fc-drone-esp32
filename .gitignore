@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+joystick_calib.json
+*.csv
+*.log
+.DS_Store
