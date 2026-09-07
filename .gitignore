@@ -4,3 +4,11 @@ joystick_calib.json
 *.csv
 *.log
 .DS_Store
+
+# ESP-IDF
+firmware/**/build/
+firmware/**/managed_components/
+firmware/**/sdkconfig.old
+firmware/**/.project
+firmware/**/.cproject
+firmware/**/.settings/

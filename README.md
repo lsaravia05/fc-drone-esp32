@@ -22,6 +22,10 @@ hardware, pines, protocolos, arquitectura).
 ## Estructura del repositorio
 
 ```
+firmware/
+  Drone_v0.1/                 Proyecto ESP-IDF de la placa "dron" (receptor LoRa + ESC)
+  emisor_v1/                  Proyecto ESP-IDF de la placa "emisor" (consola + LoRa)
+
 docs/
   estado_proyecto.md          Estado técnico detallado (hardware, pines, protocolos, arquitectura)
   seguimiento_proyecto.md     Bitácora: avances, errores, próximos pasos, mejoras, ranking de esfuerzo
@@ -43,10 +47,11 @@ tools/
                                 serial del receptor. No controla nada.
 ```
 
-El firmware en sí (proyectos ESP-IDF `Drone_v0.1` y `emisor_v1`, con el
-driver LoRa propio `lora_sx1278.h/.c`) vive en el entorno de desarrollo
-local (Espressif-IDE) y todavía no está subido a este repositorio — ver
-"Próximos pasos" más abajo.
+`firmware/Drone_v0.1` y `firmware/emisor_v1` son los dos proyectos ESP-IDF
+activos (con el driver LoRa propio `lora_sx1278.h/.c`, compartido entre
+ambos). No se incluyen sus carpetas `build/` (se regeneran con `idf.py
+build`) ni los archivos de proyecto de Espressif-IDE/Eclipse
+(`.project`/`.cproject`/`.settings`), específicos de cada máquina.
 
 ## Requisitos para las interfaces de PC (`tools/`)
 

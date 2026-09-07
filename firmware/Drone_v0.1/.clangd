@@ -1,0 +1,3 @@
+CompileFlags:
+  CompilationDatabase: C:\Users\sarav\workspace\Drone_v0.1\build
+  Remove: [-m*, -f*]
